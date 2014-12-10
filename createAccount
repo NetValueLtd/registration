@@ -1,0 +1,147 @@
+
+/*********** 
+  bool createAccount (string $pUsername, string $pPassword, $pEmail) 
+    Attempt to create an account for the passed in  
+    username,  password, and email.
+    
+    Requirements: A mysql database containing a table called "users".
+    
+    
+    Performs the following checks:
+    
+    1) Checks if a valid email has been provided
+    2) Checks if email already exists.
+    3) Checks that username is between 4 and 15 characters
+    4) Checks that password is longer than 6 characters
+    5) Checks if username already exists
+    
+    If ALL checks pass, it performs the following tasks:
+    
+    1) Creates user account to table users, where password is inserted after being hashed
+    2) Emails the new user a link to activate his/her account
+    
+    
+************/
+
+
+
+require 'PHPMailerAutoload.php';
+
+function createAccount($pUsername, $pPassword, $pEmail) { 
+  // First check we have data passed in. 
+  if (!empty($pUsername) && !empty($pPassword) && !empty($pEmail)) { 
+    $uLen = strlen($pUsername); 
+    $pLen = strlen($pPassword);
+   // $eLen = strlen($pEmail); 
+     
+    // escape the $pUsername to avoid SQL Injections 
+    $eUsername = mysql_real_escape_string($pUsername); 
+    $sql = "SELECT username FROM users WHERE username = '" . $eUsername . "' LIMIT 1"; 
+
+// escape the $pEmail to avoid SQL Injections
+ $eEmail = mysql_real_escape_string($pEmail);
+
+//check if a valid email was provided
+if(!eregi("^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$", $eEmail)){
+    // Return Error - Invalid Email
+echo "Please provide a valid email";
+break;
+}else{
+    // Return Success - Valid Email
+}
+
+ 
+    $sql2 = "SELECT email FROM users WHERE email = '" . $eEmail . "' LIMIT 1"; 
+
+
+    // Note the use of trigger_error instead of or die. 
+    $query = mysql_query($sql) or trigger_error("Query Failed: " . mysql_error());
+    $query2 = mysql_query($sql2) or trigger_error("Query Failed: " . mysql_error()); 
+    
+    // Error checks (Should be explained with the error) 
+    if ($uLen <= 4 || $uLen >= 15) { 
+      $_SESSION['error'] = "Username must be between 4 and 15 characters."; 
+    }elseif ($pLen < 6) { 
+      $_SESSION['error'] = "Password must be longer than 6 characters."; 
+    }elseif (mysql_num_rows($query) == 1) { 
+      $_SESSION['error'] = "Username already exists."; 
+    }elseif (mysql_num_rows($query2) == 1) { 
+      $_SESSION['error'] = "Email already exists.";}
+else { 
+      // All errors passed lets 
+      // Create our insert SQL by hashing the password and using the escaped Username.
+
+//Also lets create the hash for user account actiovation and also insert into the database
+
+$hash = md5( rand(0,1000) ); // Generate random 32 character hash and assign it to a local variable.
+// Example output: f4552671f8909587cf485ea990207f3b
+ $hash2=mysql_real_escape_string($hash);
+$epassword=mysql_real_escape_string($pPassword);
+
+$final=crypt("$epassword", 'e9f21');
+      $sql = "INSERT INTO users (`username`, `password`, `email`, `hash`) VALUES ('" . $eUsername . "', '" . $final . "', '" . $eEmail . "', '" . $hash2 . "' );"; 
+     
+      $query = mysql_query($sql) or trigger_error("Query Failed: " . mysql_error()); 
+
+//send email to user in order to confirm his /her account
+$mail = new PHPMailer;
+
+$mail->isSMTP();                                      // Set mailer to use SMTP
+$mail->Host = 'mail.xxxxxx.xx';  // Specify main and backup SMTP servers
+$mail->SMTPAuth = true;                               // Enable SMTP authentication
+$mail->Username = 'xxxxxxx@xxxxx.xx';                 // SMTP username
+$mail->Password = 'xxxxxxxxxxxxxx';                           // SMTP password
+//$mail->SMTPSecure = 'ssl';                            // Enable encryption, 'tls' also accepted
+
+$mail->From = 'netvalue@netvalue.gr';
+$mail->FromName = 'NetValue';
+$mail->addAddress($eEmail, $eUsername);     // Add a recipient
+//$mail->addAddress('ellen@example.com');               // Name is optional
+//$mail->addReplyTo('info@example.com', 'Information');
+//$mail->addCC('cc@example.com');
+$mail->addBCC('cmoridis@gmail.com');
+
+$mail->WordWrap = 50;                                 // Set word wrap to 50 characters
+//$mail->addAttachment('/var/tmp/file.tar.gz');         // Add attachments
+//$mail->addAttachment('/tmp/image.jpg', 'new.jpg');    // Optional name
+$mail->isHTML(true);                                  // Set email format to HTML
+
+$mail->Subject = 'Welcome: Your account has been created';
+$mail->Body    = ' Thanks for signing up! <br><br>
+Your account has been created, you can login with the following credentials after you have activated your account by pressing the url below.<br><br>
+ 
+------------------------
+Username: '.$eUsername.' <br>
+Password: Not included for security reasons. Make sure you keep your password somewhere safe.
+------------------------
+<br><br> 
+Please click or copy and paste this link to your browser in order to activate your account:<br><br><a href>http://www.netvalue.gr/myexp/verify.php?email='.$eEmail.'&hash='.$hash.'</a>';
+$mail->AltBody = 'Thanks for signing up! <br><br>
+Your account has been created, you can login with the following credentials after you have activated your account by pressing the url below.<br><br>
+ 
+------------------------
+Username: '.$eUsername.' <br>
+Password: Not included for security reasons. Make sure you keep your password somewhere safe.
+------------------------
+<br><br> 
+Please click or copy and paste this link to your browser in order to activate your account:<br><br><a href>http://www.netvalue.gr/myexp/verify.php?email='.$eEmail.'&hash='.$hash.'</a>';
+
+if(!$mail->send()) {
+    echo 'We were not able to sent a message to your email. We need a valid email address in order to provide you with instructions on how to activate your account';
+    echo 'Mailer Error: ' . $mail->ErrorInfo;
+} else {
+    echo 'A message has been sent to your email with instructions on how to activate your account';
+}
+
+       
+
+
+      if ($query) {
+return true;
+      }   
+    } 
+  } 
+   
+  return false; 
+}
+
