@@ -4,7 +4,7 @@
     Attempt to create an account for the passed in  
     username,  password, and email.
     
-    Requirements: A mysql database containing a table called "users".
+    Requirements: A mysql database containing a table called "users", with the following columns: username, password, email, and activation (0,1).
     
     
     Performs the following checks:
